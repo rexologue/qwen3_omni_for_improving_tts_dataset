@@ -1,0 +1,16 @@
+# Пример конфига для single_inference.py
+model: /path/to/your/model
+audio: /path/to/audio.wav
+transcript: "Ваша транскрипция или подсказка"
+
+dtype: bfloat16
+kv_cache_dtype: fp8
+gpu_mem: 0.75
+tp: 1
+max_seqs: 4
+max_model_len: 8192
+seed: 1234
+temperature: 0.2
+top_p: 0.9
+top_k: 40
+max_tokens: 2048
