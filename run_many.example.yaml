@@ -1,0 +1,28 @@
+# Пример конфига для run_many.py
+# datasets_root содержит подпапки с аудио и metadata.csv
+# Для каждой подпапки создаётся результат output_dir/<dataset>.csv
+
+datasets_root: /data/datasets
+output_dir: /data/output
+# Опционально можно задать устройство
+# device: "0"
+skip_datasets:
+  - part-1
+  - test
+fail_fast: false
+
+dataset:
+  model: /path/to/your/model
+  batch_size: 8
+  max_seqs: 8
+  max_model_len: 4096
+  gpu_mem: 0.75
+  dtype: bfloat16
+  kv_cache_dtype: fp8
+  seed: 1234
+  temperature: 0.05
+  top_p: 0.9
+  top_k: 40
+  max_tokens: 2048
+  tp: 1
+  accent: true
