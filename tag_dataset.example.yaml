@@ -2,8 +2,8 @@
 
 model: /path/to/your/model
 
-# JSONL с few-shot примерами
-few_shot_json: examples.jsonl
+# JSON с few-shot примерами
+few_shot_json: examples.json
 
 # Папка с аудио и CSV (файл metadata.csv с колонками audio_path, text, text_accent, speaker_name, language)
 dataset_dir: /data/dataset_root

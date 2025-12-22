@@ -8,7 +8,7 @@ import jiwer
 from tqdm import tqdm
 from ruaccent import RUAccent
 
-from config import DatasetConfig
+from config import RestoreConfig
 from dataset_utils import DatasetLoader, read_csv_header, read_done_audio_paths
 from prompts import get_prompt
 from mllm_utils import init_llm, init_sampling, load_processor, build_inputs, generate_texts
@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     return ap.parse_args()
 
 
-def run_with_config(config: DatasetConfig) -> None:
+def run_with_config(config: RestoreConfig) -> None:
     output_csv = config.out
     dataset_root = config.dataset_dir.resolve()
 
@@ -137,7 +137,7 @@ def run_with_config(config: DatasetConfig) -> None:
 
 def main() -> None:
     args = parse_args()
-    config = DatasetConfig.from_yaml(args.config)
+    config = RestoreConfig.from_yaml(args.config)
     run_with_config(config)
 
 
