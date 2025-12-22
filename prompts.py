@@ -1,6 +1,7 @@
 from utils import PUNCTS_STR
+from typing import Literal
 
-PROMPT_3 = (
+RESTORE_PROMPT = (
     "Ты — высококвалифицированный краудсорс-разметчик.\n"
     "Твоя задача — отредактировать транскрипт по АУДИО и тексту ниже.\n"
     "\n"
@@ -19,8 +20,15 @@ PROMPT_3 = (
     "Верни ТОЛЬКО итоговый текст в теге <out>...</out> без каких-либо комментариев.\n"
 )
 
-def get_prompt(text: str) -> str:
-    return PROMPT_3.format(transcript=text)
+TAGS_PROMPT = "{transcript}"
+
+def get_prompt(text: str, prompt_type: Literal["restore", "tags"] = "restore") -> str:
+    if prompt_type == "restore":
+        return RESTORE_PROMPT.format(transcript=text)
+    elif prompt_type == "tags":
+        return TAGS_PROMPT.format(transcript=text)
+    else:
+        raise ValueError(f"Unknown prompt type: {prompt_type}")
 
 
 def get_bench_prompt(words_only: str) -> str:

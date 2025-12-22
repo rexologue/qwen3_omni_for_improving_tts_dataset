@@ -15,7 +15,7 @@ from mllm_utils import init_llm, init_sampling, load_processor, build_inputs, ge
 
 
 def parse_args() -> argparse.Namespace:
-    ap = argparse.ArgumentParser(description="Обработка датасета с использованием PROMPT 3 и YAML-конфига")
+    ap = argparse.ArgumentParser(description="Обработка датасета с использованием RESTORE_PROMPT и YAML-конфига")
     ap.add_argument("--config", type=Path, required=True, help="Путь до YAML конфига")
     return ap.parse_args()
 
