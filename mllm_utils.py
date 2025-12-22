@@ -103,33 +103,40 @@ def build_few_shot_inputs(
     ) -> dict[str, Any]:
     
     messages = []
-            
-    messages.append({
-        "role": "user",
-        "content": [
-            {"type": "text",  "text": prompt},
-        ],
-    })
+    user_text_template = "Транскрипт для разметки: \"{example}\"\nВывод:"
     
-    # 1. Добавляем примеры в историю (как будто это предыдущие ходы диалога)
+    # Флаг, чтобы понять, добавили мы уже инструкцию или нет
+    prompt_added = False
+
+    # 1. Добавляем примеры в историю
     if few_shot_examples:
-        for ex in few_shot_examples:
-            # Ход пользователя (Аудио + Инструкция/Текст)
-            # Важно: промпт для примера должен совпадать с логикой целевого промпта
+        for i, ex in enumerate(few_shot_examples):
+            user_text = user_text_template.format(example=ex["text"])
+            
+            # Прикрепляем инструкцию к ПЕРВОМУ примеру
+            if i == 0:
+                user_text = prompt + "\n" + user_text  # Добавил \n для надежности
+                prompt_added = True
+                
             user_content = [
                 {"type": "audio", "audio": ex["audio"]},
-                {"type": "text",  "text": f"Транскрипт для разметки: \"{ex['text']}\"\nВывод:"}
+                {"type": "text",  "text": user_text}
             ]
             messages.append({"role": "user", "content": user_content})
-            
-            # Ответ ассистента (Идеальная разметка)
             messages.append({"role": "assistant", "content": ex["response"]})
             
+    # 2. Формируем целевой запрос
+    target_text = user_text_template.format(example=text)
+
+    # Если инструкция еще не была добавлена (т.е. примеров не было), добавляем её сюда
+    if not prompt_added:
+        target_text = prompt + "\n" + target_text
+
     messages.append({
         "role": "user",
         "content": [
             {"type": "audio", "audio": audio_path},
-            {"type": "text",  "text": f"Транскрипт для разметки: \"{text}\"\nВывод:"},
+            {"type": "text",  "text": target_text},
         ],
     })
 
