@@ -128,35 +128,19 @@ class TagConfig:
             if not required_fields.issubset(ex.keys()):
                 raise ConfigError(f"Example {i} missing fields: {required_fields - set(ex.keys())}")
             
-            # Audio path check (assuming paths in JSON are relative to the JSON file or absolute)
+            # Audio path check
             audio_path = Path(ex["audio"])
             if not audio_path.exists():
                 raise ConfigError(f"Audio file not found for example {i}: {audio_path}")
-
-        # 3. Dynamic initialization
-        # This automatically picks up defaults from the dataclass definition
-        init_kwargs = {}
-        for field in cls.__dataclass_fields__.values():
-            if field.name == "examples":
-                init_kwargs["examples"] = examples
-            elif field.name in data:
-                # Cast to the correct type based on the dataclass hint
-                val = data[field.name]
-                init_kwargs[field.name] = field.type(val) if not hasattr(field.type, "__origin__") else val
-            elif field.name == "dataset_dir" or field.name == "out":
-                init_kwargs[field.name] = Path(data[field.name])
-            elif field.name == "model":
-                init_kwargs[field.name] = str(data["model"])
-
-        # Create the instance
-        # Note: Using .get() logic is cleaner if you want to keep your manual mapping:
+            
+        # 4. Create the instance
         cfg = cls(
             model=str(data["model"]),
             examples=examples,
             dataset_dir=Path(data["dataset_dir"]),
             out=Path(data["out"]),
-            # For the rest, we loop through the remaining optional fields
-            **{k: data[k] for k in data if k in cls.__dataclass_fields__ and k not in ["model", "examples", "dataset_dir", "out"]}
+            # Собираем остальные поля, которые есть в датаклассе, но не обработаны выше
+            **{k: data[k] for k in data if k in cls.__dataclass_fields__ and k not in ["model", "examples", "dataset_dir", "out", "few_shot_json"]}
         )
         
         cfg.validate_paths()

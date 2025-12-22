@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
-os.environ.setdefault("VLLM_USE_V1", "0")
+os.environ["VLLM_USE_V1"] = "0"
 
 from typing import Any
 from vllm import LLM, SamplingParams
@@ -35,7 +35,7 @@ def init_llm(
         kv_cache_dtype=kv_cache_dtype,
         gpu_memory_utilization=gpu_memory_utilization,
         tensor_parallel_size=tensor_parallel_size,
-        limit_mm_per_prompt=limit_mm_per_prompt or {"audio": 1, "image": 0, "video": 0},
+        limit_mm_per_prompt=limit_mm_per_prompt or {"audio": 5, "image": 0, "video": 0},
         max_num_seqs=max_num_seqs,
         max_model_len=max_model_len,
         seed=seed,
