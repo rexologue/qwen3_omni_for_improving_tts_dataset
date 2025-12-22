@@ -62,13 +62,54 @@ def build_inputs(
     audio_path: str, 
     prompt_text: str, 
     processor: Qwen3OmniMoeProcessor,
-    few_shot_examples: list[dict[str, str]] | None = None
     ) -> dict[str, Any]:
     """
     Универсальный билдер: берёт audio и ГОТОВЫЙ текст подсказки (prompt_text).
     Возвращает dict для llm.generate().
     """
     messages = []
+            
+    messages.append({
+        "role": "user",
+        "content": [
+            {"type": "audio", "audio": audio_path},
+            {"type": "text",  "text": prompt_text},
+        ],
+    })
+
+    prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    audios, images, videos = process_mm_info(messages, use_audio_in_video=False)  # type: ignore
+
+    inputs: dict[str, Any] = {
+        "prompt": prompt,
+        "multi_modal_data": {},
+        "mm_processor_kwargs": {"use_audio_in_video": False},
+    }
+    if images is not None:
+        inputs["multi_modal_data"]["image"] = images
+    if videos is not None:
+        inputs["multi_modal_data"]["video"] = videos
+    if audios is not None:
+        inputs["multi_modal_data"]["audio"] = audios
+
+    return inputs
+
+def build_few_shot_inputs(
+    audio_path: str, 
+    prompt: str, 
+    text: str,
+    processor: Qwen3OmniMoeProcessor,
+    few_shot_examples: list[dict[str, str]] | None = None
+    ) -> dict[str, Any]:
+    
+    messages = []
+            
+    messages.append({
+        "role": "user",
+        "content": [
+            {"type": "text",  "text": prompt},
+        ],
+    })
     
     # 1. Добавляем примеры в историю (как будто это предыдущие ходы диалога)
     if few_shot_examples:
@@ -88,7 +129,7 @@ def build_inputs(
         "role": "user",
         "content": [
             {"type": "audio", "audio": audio_path},
-            {"type": "text",  "text": prompt_text},
+            {"type": "text",  "text": f"Транскрипт для разметки: \"{text}\"\nВывод:"},
         ],
     })
 

@@ -12,7 +12,7 @@ from config import TagConfig
 from prompts import get_prompt
 from utils import ANY_TAG_PATTERN
 from dataset_utils import DatasetLoader, read_csv_header, read_done_audio_paths
-from mllm_utils import init_llm, init_sampling, load_processor, build_inputs, generate_texts
+from mllm_utils import init_llm, init_sampling, load_processor, build_few_shot_inputs, generate_texts
 
 
 def parse_args() -> argparse.Namespace:
@@ -89,8 +89,14 @@ def run_with_config(config: TagConfig) -> None:
 
             reqs = []
             for p, t in zip(batch, texts):
-                prompt_text = get_prompt(t, prompt_type="tags")
-                reqs.append(build_inputs(p["abs_audio"], prompt_text, processor, config.examples))
+                prompt = get_prompt(t, prompt_type="tags")
+                reqs.append(build_few_shot_inputs(
+                    p["abs_audio"], 
+                    prompt, 
+                    t,
+                    processor, 
+                    config.examples
+                ))
 
             gen_texts = generate_texts(llm, reqs, sampling)
 

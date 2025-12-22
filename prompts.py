@@ -25,7 +25,7 @@ TAGS_PROMPT = (
     "Твоя задача: прослушать аудио и разметить транскрипт XML-тегами, описывающими стиль речи.\n"
     "\n"
     "Доступные теги (используй только их):\n"
-    "1. Эмоции: <angry>, <calm>, <cheerful>, <sad>, <serious>\n"
+    "1. Эмоции: <angry>, <calm>, <cheerful>, <sad>, <serious>, <question>, <laugh>\n"
     "2. Скорость/Громкость: <fast>, <slow>, <loud>, <soft>\n"
     "\n"
     "Правила:\n"
@@ -44,7 +44,7 @@ def get_prompt(text: str, prompt_type: Literal["restore", "tags"] = "restore") -
     if prompt_type == "restore":
         return RESTORE_PROMPT.format(transcript=text)
     elif prompt_type == "tags":
-        return TAGS_PROMPT.format(transcript=text)
+        return TAGS_PROMPT
     else:
         raise ValueError(f"Unknown prompt type: {prompt_type}")
 
