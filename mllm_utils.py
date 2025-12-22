@@ -58,18 +58,39 @@ def init_sampling(
         max_tokens=max_tokens,
     )
 
-def build_inputs(audio_path: str, prompt_text: str, processor) -> dict[str, Any]:
+def build_inputs(
+    audio_path: str, 
+    prompt_text: str, 
+    processor: Qwen3OmniMoeProcessor,
+    few_shot_examples: list[dict[str, str]] | None = None
+    ) -> dict[str, Any]:
     """
     Универсальный билдер: берёт audio и ГОТОВЫЙ текст подсказки (prompt_text).
     Возвращает dict для llm.generate().
     """
-    messages = [{
+    messages = []
+    
+    # 1. Добавляем примеры в историю (как будто это предыдущие ходы диалога)
+    if few_shot_examples:
+        for ex in few_shot_examples:
+            # Ход пользователя (Аудио + Инструкция/Текст)
+            # Важно: промпт для примера должен совпадать с логикой целевого промпта
+            user_content = [
+                {"type": "audio", "audio": ex["audio"]},
+                {"type": "text",  "text": f"Транскрипт для разметки: \"{ex['text']}\"\nВывод:"}
+            ]
+            messages.append({"role": "user", "content": user_content})
+            
+            # Ответ ассистента (Идеальная разметка)
+            messages.append({"role": "assistant", "content": ex["response"]})
+            
+    messages.append({
         "role": "user",
         "content": [
             {"type": "audio", "audio": audio_path},
             {"type": "text",  "text": prompt_text},
         ],
-    }]
+    })
 
     prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     audios, images, videos = process_mm_info(messages, use_audio_in_video=False)  # type: ignore
@@ -87,6 +108,7 @@ def build_inputs(audio_path: str, prompt_text: str, processor) -> dict[str, Any]
         inputs["multi_modal_data"]["audio"] = audios
 
     return inputs
+
 
 def generate_texts(llm: LLM, inputs_list: list[dict[str, Any]], sampling: SamplingParams) -> list[str]:
     outs = llm.generate(inputs_list, sampling_params=sampling, use_tqdm=False)

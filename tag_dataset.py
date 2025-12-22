@@ -5,7 +5,6 @@ import itertools
 from typing import Any
 from pathlib import Path
 
-import jiwer
 from tqdm import tqdm
 from ruaccent import RUAccent
 
@@ -47,8 +46,7 @@ def run_with_config(config: DatasetConfig) -> None:
             "tag_text",
             "tag_accent_text",
             "speaker_name",
-            "language",
-            "cer",
+            "language"
         ]
 
     accentizer = None
@@ -87,7 +85,6 @@ def run_with_config(config: DatasetConfig) -> None:
             writer.writeheader()
 
         for batch in itertools.chain([first_batch], dataset_iter):
-            batch_cer = 0
             texts = [(p["text"] or "").strip() for p in batch]
 
             reqs = []
@@ -117,26 +114,18 @@ def run_with_config(config: DatasetConfig) -> None:
                 else:
                     tag_accent_text = gen_text
 
-                cer = jiwer.cer(base_text, gen_text)
-                batch_cer += cer
-
                 row_full: dict[str, Any] = {
                     "audio_path": rel_path,
                     "base_text": base_text,
                     "tag_text": gen_text,
                     "tag_accent_text": tag_accent_text,
                     "speaker_name": (p["speaker_name"] or ""),
-                    "language": p["language"],
-                    "cer": cer,
+                    "language": p["language"]
                 }
                 row = {k: row_full.get(k, "") for k in fieldnames}
                 writer.writerow(row)
 
-            if len(batch) > 0:
-                batch_cer /= len(batch)
-
             pbar.update(len(batch))
-            pbar.set_postfix_str(f"cer: {batch_cer:.4f}")
 
     print("Готово:", output_csv)
     print(f"Всего обработано: {dataset_loader.total_pairs}")

@@ -1,0 +1,17 @@
+[
+    {
+        "audio": "/datasets/refs/angry_sample.wav",
+        "text": "Уходи отсюда немедленно",
+        "response": "<out><angry>Уходи отсюда немедленно</angry></out>"
+    },
+    {
+        "audio": "/datasets/refs/happy_sample.wav",
+        "text": "Какой чудесный день",
+        "response": "<out><cheerful>Какой чудесный день</cheerful></out>"
+    },
+    {
+        "audio": "/datasets/refs/mixed_sample.wav", 
+        "text": "Сначала было тихо, а потом бах!",
+        "response": "<out><soft>Сначала было тихо,</soft> <loud>а потом бах!</loud></out>"
+    }
+]
