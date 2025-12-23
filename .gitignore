@@ -1,5 +1,6 @@
 *.yaml
 *.json
+*.csv
 !examples.example.json
 !restore_dataset.example.yaml
 !run_many.example.yaml
