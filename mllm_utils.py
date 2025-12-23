@@ -35,10 +35,12 @@ def init_llm(
         kv_cache_dtype=kv_cache_dtype,
         gpu_memory_utilization=gpu_memory_utilization,
         tensor_parallel_size=tensor_parallel_size,
-        limit_mm_per_prompt=limit_mm_per_prompt or {"audio": 5, "image": 0, "video": 0},
+        limit_mm_per_prompt=limit_mm_per_prompt or {"audio": 1, "image": 0, "video": 0},
         max_num_seqs=max_num_seqs,
         max_model_len=max_model_len,
         seed=seed,
+        enforce_eager=True,
+        enable_chunked_prefill=False,  # Disable V1-default feature
     )
     if model_impl is not None:
         kwargs["model_impl"] = model_impl
@@ -159,5 +161,5 @@ def build_few_shot_inputs(
 
 
 def generate_texts(llm: LLM, inputs_list: list[dict[str, Any]], sampling: SamplingParams) -> list[str]:
-    outs = llm.generate(inputs_list, sampling_params=sampling, use_tqdm=False)
+    outs = llm.generate(inputs_list, sampling_params=sampling, use_tqdm=True)
     return [extract_out_payload(o.outputs[0].text) for o in outs]

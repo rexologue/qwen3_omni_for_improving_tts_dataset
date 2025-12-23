@@ -61,7 +61,7 @@ def run_with_config(config: TagConfig) -> None:
         kv_cache_dtype=config.kv_cache_dtype,
         gpu_memory_utilization=config.gpu_mem,
         tensor_parallel_size=config.tp,
-        limit_mm_per_prompt={"audio": 1, "image": 0, "video": 0},
+        limit_mm_per_prompt={"audio": 6, "image": 0, "video": 0},
         max_num_seqs=config.max_seqs,
         max_model_len=config.max_model_len,
         seed=config.seed,
