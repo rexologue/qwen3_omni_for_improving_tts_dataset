@@ -143,12 +143,6 @@ class ProcessDatasetConfig:
             raise FileNotFoundError(f"dataset_dir не найден: {self.dataset_dir}")
         if not self.dataset_dir.is_dir():
             raise NotADirectoryError(f"dataset_dir должен быть директорией: {self.dataset_dir}")
-        if self.out.is_absolute():
-            cwd = Path.cwd().resolve()
-            try:
-                self.out.relative_to(cwd)
-            except ValueError:
-                self.out = cwd / self.out.relative_to("/")
         self.out.parent.mkdir(parents=True, exist_ok=True)
 
 
