@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 
 from config import RunManyConfig
-from vllm.qwen3_omni.restore_dataset import run_with_config
+from process_dataset import run_with_config
 
 
 def parse_args() -> argparse.Namespace:

@@ -30,4 +30,4 @@ RUN chown -R omni:omni /home/omni/app && chmod -R 777 /home/omni
 # Switch to non-root user
 USER omni
 
-CMD ["python3", "tag_dataset.py", "--help"]
+CMD ["python3", "process_dataset.py", "--help"]

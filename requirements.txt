@@ -2,3 +2,4 @@ ruaccent
 pyarrow
 qwen_omni_utils
 jiwer
+pyyaml

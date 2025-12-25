@@ -47,20 +47,61 @@ class DatasetLoader:
         self.batch_size = batch_size
         self.skip_rel_paths = skip_rel_paths
         self.total_pairs = 0
+        self.total_rows = 0
+        self.skipped_rows = 0
 
         meta_path = self.dataset_dir / "metadata.csv"
         if not meta_path.exists():
             raise FileNotFoundError(f"Не найден metadata.csv по пути: {meta_path}")
 
-        self._reader = pa_csv.open_csv(
+        self.total_rows, self.skipped_rows = self._count_rows(meta_path)
+        self._reader = self._open_reader(meta_path)
+
+        schema_fields = set(self._reader.schema.names)
+        if len(schema_fields & EXPECTED_FIELDS) < len(EXPECTED_FIELDS):
+            raise ValueError(f"metadata.csv должен содержать колонки: {EXPECTED_FIELDS}")
+
+    def _open_reader(self, meta_path: Path) -> pa_csv.CSVStreamingReader:
+        return pa_csv.open_csv(
             meta_path,
             read_options=pa_csv.ReadOptions(block_size=10_000_000),
             parse_options=pa_csv.ParseOptions(delimiter="|"),
         )
 
-        schema_fields = set(self._reader.schema.names)
+    def _count_rows(self, meta_path: Path) -> tuple[int, int]:
+        total_rows = 0
+        skipped_rows = 0
+        reader = self._open_reader(meta_path)
+
+        schema_fields = set(reader.schema.names)
         if len(schema_fields & EXPECTED_FIELDS) < len(EXPECTED_FIELDS):
             raise ValueError(f"metadata.csv должен содержать колонки: {EXPECTED_FIELDS}")
+
+        for record_batch in reader:
+            columns = {name: record_batch.column(name) for name in record_batch.schema.names}
+            num_rows = record_batch.num_rows
+
+            text_accent_col = columns.get("text_accent")
+            if text_accent_col is None:
+                text_accent_col = pa.array([None] * num_rows)
+
+            speaker_col = columns.get("speaker_name")
+
+            for row_idx in range(num_rows):
+                rel_audio = columns["audio_path"][row_idx].as_py()
+                text = columns["text"][row_idx].as_py()
+                language = columns["language"][row_idx].as_py()
+                _ = text_accent_col[row_idx].as_py()
+                _ = speaker_col[row_idx].as_py() if speaker_col is not None else None
+
+                if not rel_audio or not text or not language:
+                    continue
+
+                total_rows += 1
+                if rel_audio in self.skip_rel_paths:
+                    skipped_rows += 1
+
+        return total_rows, skipped_rows
 
     def __iter__(self) -> Iterator[list[dict[str, Any]]]:
         buffer: list[dict[str, Any]] = []

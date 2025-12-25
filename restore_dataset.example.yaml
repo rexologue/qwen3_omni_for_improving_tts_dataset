@@ -1,4 +1,5 @@
-# Пример конфига для process_dataset.py
+# Пример конфига для process_dataset.py (task=restore)
+task: restore
 model: /path/to/your/model
 # Папка с аудио и CSV (файл metadata.csv с колонками audio_path, text, text_accent, speaker_name, language)
 dataset_dir: /data/dataset_root
