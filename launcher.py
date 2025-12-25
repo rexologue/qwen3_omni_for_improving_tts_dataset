@@ -149,7 +149,7 @@ def _build_docker_command(
         mount_flag = f"{host_path}:{container_path}:{mode}"
         cmd += ["-v", mount_flag]
 
-    cmd += [args.image, "python3", "process_dataset.py", "--config", "/app/config.yaml"]
+    cmd += [docker_cfg.image, "python3", "process_dataset.py", "--config", "/app/config.yaml"]
     return cmd
 
 
