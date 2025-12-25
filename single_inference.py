@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 from config import SingleInferenceConfig
-from mllm_utils import build_inputs, generate_texts, init_llm, init_sampling, load_processor
+from mllm_utils import build_few_shot_inputs, build_inputs, generate_texts, init_llm, init_sampling, load_processor
 from prompts import get_prompt
 
 
@@ -17,13 +17,14 @@ def main() -> None:
 
     config = SingleInferenceConfig.from_yaml(args.config)
 
+    audio_limit = max(1, len(config.examples) + 1) if config.task == "tag" else 1
     llm = init_llm(
         str(config.model),
         dtype=config.dtype,
         kv_cache_dtype=config.kv_cache_dtype,
         gpu_memory_utilization=config.gpu_mem,
         tensor_parallel_size=config.tp,
-        limit_mm_per_prompt={"audio": 1, "image": 0, "video": 0},
+        limit_mm_per_prompt={"audio": audio_limit, "image": 0, "video": 0},
         max_num_seqs=config.max_seqs,
         max_model_len=config.max_model_len,
         seed=config.seed,
@@ -38,8 +39,18 @@ def main() -> None:
     )
     processor = load_processor(str(config.model))
 
-    prompt_text = get_prompt(config.transcript)
-    inputs = build_inputs(str(config.audio), prompt_text, processor)
+    if config.task == "tag":
+        prompt_text = get_prompt(config.transcript, prompt_type="tags")
+        inputs = build_few_shot_inputs(
+            str(config.audio),
+            prompt_text,
+            config.transcript,
+            processor,
+            config.examples,
+        )
+    else:
+        prompt_text = get_prompt(config.transcript)
+        inputs = build_inputs(str(config.audio), prompt_text, processor)
 
     result = generate_texts(llm, [inputs], sampling)[0]
     print(result)

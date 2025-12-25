@@ -35,10 +35,13 @@ def _check_unknown_fields(data: Dict[str, Any], allowed: Iterable[str]) -> None:
 
 
 @dataclass
-class RestoreConfig:
+class ProcessDatasetConfig:
+    task: str
     model: str
     dataset_dir: Path
     out: Path
+    few_shot_json: Path | None = None
+    examples: list[dict[str, str]] = field(default_factory=list)
     batch_size: int = 4
     max_seqs: int = 8
     max_model_len: int = 4096
@@ -54,14 +57,62 @@ class RestoreConfig:
     accent: bool = True
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RestoreConfig":
-        _validate_required(data, {"model", "dataset_dir", "out"})
-        _check_unknown_fields(data, {f.name for f in cls.__dataclass_fields__.values()})
+    def from_dict(cls, data: Dict[str, Any]) -> "ProcessDatasetConfig":
+        allowed_fields = {
+            "task",
+            "model",
+            "dataset_dir",
+            "out",
+            "few_shot_json",
+            "batch_size",
+            "max_seqs",
+            "max_model_len",
+            "gpu_mem",
+            "dtype",
+            "kv_cache_dtype",
+            "seed",
+            "temperature",
+            "top_p",
+            "top_k",
+            "max_tokens",
+            "tp",
+            "accent",
+        }
+        _validate_required(data, {"task", "model", "dataset_dir", "out"})
+        _check_unknown_fields(data, allowed_fields)
+
+        task = str(data["task"]).strip().lower()
+        if task not in {"restore", "tag"}:
+            raise ConfigError("task должен быть 'restore' или 'tag'")
+
+        examples: list[dict[str, str]] = []
+        few_shot_json: Path | None = None
+        if task == "tag":
+            if "few_shot_json" not in data:
+                raise ConfigError("Для task='tag' необходимо указать few_shot_json")
+            few_shot_json = Path(data["few_shot_json"])
+            if not few_shot_json.is_file():
+                raise ConfigError(f"Incorrect path to few-shot JSON: {few_shot_json}")
+
+            with few_shot_json.open("r", encoding="utf-8") as f:
+                examples = json.load(f)
+
+            required_fields = {"audio", "text", "response"}
+            for i, ex in enumerate(examples):
+                if not required_fields.issubset(ex.keys()):
+                    raise ConfigError(f"Example {i} missing fields: {required_fields - set(ex.keys())}")
+
+                audio_path = Path(ex["audio"])
+                if not audio_path.exists():
+                    raise ConfigError(f"Audio file not found for example {i}: {audio_path}")
 
         cfg = cls(
+            task=task,
             model=str(data["model"]),
             dataset_dir=Path(data["dataset_dir"]),
             out=Path(data["out"]),
+            few_shot_json=few_shot_json,
+            examples=examples,
             batch_size=int(data.get("batch_size", cls.batch_size)),
             max_seqs=int(data.get("max_seqs", cls.max_seqs)),
             max_model_len=int(data.get("max_model_len", cls.max_model_len)),
@@ -80,74 +131,7 @@ class RestoreConfig:
         return cfg
 
     @classmethod
-    def from_yaml(cls, path: Path) -> "RestoreConfig":
-        return cls.from_dict(_load_yaml(path))
-
-    def validate_paths(self) -> None:
-        if not self.dataset_dir.exists():
-            raise FileNotFoundError(f"dataset_dir не найден: {self.dataset_dir}")
-        if not self.dataset_dir.is_dir():
-            raise NotADirectoryError(f"dataset_dir должен быть директорией: {self.dataset_dir}")
-        self.out.parent.mkdir(parents=True, exist_ok=True)
-        
-@dataclass
-class TagConfig:
-    model: str
-    examples: list[dict[str, str]]
-    dataset_dir: Path
-    out: Path
-    batch_size: int = 4
-    max_seqs: int = 8
-    max_model_len: int = 4096
-    gpu_mem: float = 0.75
-    dtype: str = "bfloat16"
-    kv_cache_dtype: str = "fp8"
-    seed: int = 1234
-    temperature: float = 0.05
-    top_p: float = 0.9
-    top_k: int = 40
-    max_tokens: int = 2048
-    tp: int = 1
-    accent: bool = True
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TagConfig":
-        # 1. Basic validation
-        _validate_required(data, {"model", "dataset_dir", "out", "few_shot_json"})
-        
-        # 2. Load and validate examples
-        examples_path = Path(data["few_shot_json"])
-        if not examples_path.is_file():
-            raise ConfigError(f"Incorrect path to few-shot JSON: {examples_path}")
-        
-        with open(examples_path, "r", encoding="utf-8") as f:
-            examples = json.load(f)
-            
-        required_fields = {"audio", "text", "response"}
-        for i, ex in enumerate(examples):
-            if not required_fields.issubset(ex.keys()):
-                raise ConfigError(f"Example {i} missing fields: {required_fields - set(ex.keys())}")
-            
-            # Audio path check
-            audio_path = Path(ex["audio"])
-            if not audio_path.exists():
-                raise ConfigError(f"Audio file not found for example {i}: {audio_path}")
-            
-        # 4. Create the instance
-        cfg = cls(
-            model=str(data["model"]),
-            examples=examples,
-            dataset_dir=Path(data["dataset_dir"]),
-            out=Path(data["out"]),
-            # Собираем остальные поля, которые есть в датаклассе, но не обработаны выше
-            **{k: data[k] for k in data if k in cls.__dataclass_fields__ and k not in ["model", "examples", "dataset_dir", "out", "few_shot_json"]}
-        )
-        
-        cfg.validate_paths()
-        return cfg
-
-    @classmethod
-    def from_yaml(cls, path: Path) -> "TagConfig":
+    def from_yaml(cls, path: Path) -> "ProcessDatasetConfig":
         return cls.from_dict(_load_yaml(path))
 
     def validate_paths(self) -> None:
@@ -160,9 +144,12 @@ class TagConfig:
 
 @dataclass
 class SingleInferenceConfig:
+    task: str
     model: str
     audio: Path
     transcript: str
+    few_shot_json: Path | None = None
+    examples: list[dict[str, str]] = field(default_factory=list)
     dtype: str = "bfloat16"
     kv_cache_dtype: str = "fp8"
     gpu_mem: float = 0.75
@@ -177,13 +164,59 @@ class SingleInferenceConfig:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SingleInferenceConfig":
+        allowed_fields = {
+            "task",
+            "model",
+            "audio",
+            "transcript",
+            "few_shot_json",
+            "dtype",
+            "kv_cache_dtype",
+            "gpu_mem",
+            "tp",
+            "max_seqs",
+            "max_model_len",
+            "seed",
+            "temperature",
+            "top_p",
+            "top_k",
+            "max_tokens",
+        }
         _validate_required(data, {"model", "audio", "transcript"})
-        _check_unknown_fields(data, {f.name for f in cls.__dataclass_fields__.values()})
+        _check_unknown_fields(data, allowed_fields)
+
+        task = str(data.get("task", "restore")).strip().lower()
+        if task not in {"restore", "tag"}:
+            raise ConfigError("task должен быть 'restore' или 'tag'")
+
+        examples: list[dict[str, str]] = []
+        few_shot_json: Path | None = None
+        if task == "tag":
+            if "few_shot_json" not in data:
+                raise ConfigError("Для task='tag' необходимо указать few_shot_json")
+            few_shot_json = Path(data["few_shot_json"])
+            if not few_shot_json.is_file():
+                raise ConfigError(f"Incorrect path to few-shot JSON: {few_shot_json}")
+
+            with few_shot_json.open("r", encoding="utf-8") as f:
+                examples = json.load(f)
+
+            required_fields = {"audio", "text", "response"}
+            for i, ex in enumerate(examples):
+                if not required_fields.issubset(ex.keys()):
+                    raise ConfigError(f"Example {i} missing fields: {required_fields - set(ex.keys())}")
+
+                audio_path = Path(ex["audio"])
+                if not audio_path.exists():
+                    raise ConfigError(f"Audio file not found for example {i}: {audio_path}")
 
         cfg = cls(
+            task=task,
             model=str(data["model"]),
             audio=Path(data["audio"]),
             transcript=str(data["transcript"]),
+            few_shot_json=few_shot_json,
+            examples=examples,
             dtype=str(data.get("dtype", cls.dtype)),
             kv_cache_dtype=str(data.get("kv_cache_dtype", cls.kv_cache_dtype)),
             gpu_mem=float(data.get("gpu_mem", cls.gpu_mem)),
@@ -250,11 +283,11 @@ class RunManyConfig:
             raise NotADirectoryError(f"datasets_root должен быть директорией: {self.datasets_root}")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def make_dataset_config(self, dataset_dir: Path) -> RestoreConfig:
+    def make_dataset_config(self, dataset_dir: Path) -> ProcessDatasetConfig:
         dataset_name = dataset_dir.name
         dataset_cfg = {
             **self.dataset,
             "dataset_dir": dataset_dir,
             "out": self.output_dir / f"{dataset_name}.csv",
         }
-        return RestoreConfig.from_dict(dataset_cfg)
+        return ProcessDatasetConfig.from_dict(dataset_cfg)

@@ -1,7 +1,11 @@
 # Пример конфига для single_inference.py
+task: restore
 model: /path/to/your/model
 audio: /path/to/audio.wav
 transcript: "Ваша транскрипция или подсказка"
+
+# Для task=tag дополнительно:
+# few_shot_json: /path/to/examples.json
 
 dtype: bfloat16
 kv_cache_dtype: fp8

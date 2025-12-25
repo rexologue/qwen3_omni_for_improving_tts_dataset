@@ -12,6 +12,7 @@ skip_datasets:
 fail_fast: false
 
 dataset:
+  task: restore
   model: /path/to/your/model
   batch_size: 8
   max_seqs: 8

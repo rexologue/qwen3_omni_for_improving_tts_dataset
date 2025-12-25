@@ -1,5 +1,5 @@
-# Пример конфига для tag_dataset.py
-
+# Пример конфига для process_dataset.py (task=tag)
+task: tag
 model: /path/to/your/model
 
 # JSON с few-shot примерами
