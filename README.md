@@ -131,10 +131,12 @@ The launcher accepts **host paths only** and automatically maps them into fixed 
 
 - Model → `/app/model`
 - Dataset → `/app/data`
-- Output dir → `/app/output`
+- Output file → `/app/output/<result.csv>`
 - Config → `/app/config.yaml`
 - Few-shot JSON → `/app/few_shot/examples.json`
 - Few-shot audio directories → `/app/few_shot_audio/*`
+
+The launcher will also **touch the output file on the host** and mount it directly into the container, so results are always written to the host path.
 
 Run:
 
