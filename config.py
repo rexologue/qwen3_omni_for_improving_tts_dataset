@@ -63,6 +63,7 @@ class ProcessDatasetConfig:
             "model",
             "dataset_dir",
             "out",
+            "output_csv",
             "few_shot_json",
             "batch_size",
             "max_seqs",
@@ -78,7 +79,9 @@ class ProcessDatasetConfig:
             "tp",
             "accent",
         }
-        _validate_required(data, {"task", "model", "dataset_dir", "out"})
+        _validate_required(data, {"task", "model", "dataset_dir"})
+        if "out" not in data and "output_csv" not in data:
+            raise ConfigError("В конфиге не хватает обязательных полей: out или output_csv")
         _check_unknown_fields(data, allowed_fields)
 
         task = str(data["task"]).strip().lower()
@@ -106,11 +109,12 @@ class ProcessDatasetConfig:
                 if not audio_path.exists():
                     raise ConfigError(f"Audio file not found for example {i}: {audio_path}")
 
+        out_value = data.get("output_csv") or data.get("out")
         cfg = cls(
             task=task,
             model=str(data["model"]),
             dataset_dir=Path(data["dataset_dir"]),
-            out=Path(data["out"]),
+            out=Path(out_value),
             few_shot_json=few_shot_json,
             examples=examples,
             batch_size=int(data.get("batch_size", cls.batch_size)),
