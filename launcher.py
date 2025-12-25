@@ -77,7 +77,7 @@ def _load_launcher_config(path: Path) -> tuple[DockerRunConfig, dict[str, Any]]:
         gpu=str(docker_section.get("gpu", "all")),
         shm_size=str(docker_section.get("shm_size", "16g")),
         container_name=docker_section.get("container_name"),
-        use_host_user=bool(docker_section.get("use_host_user", False)),
+        use_host_user=bool(docker_section.get("use_host_user", True)),
         dry_run=bool(docker_section.get("dry_run", False)),
     )
 
