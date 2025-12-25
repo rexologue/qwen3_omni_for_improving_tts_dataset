@@ -118,11 +118,13 @@ def _build_docker_command(
     host_dataset = cfg.dataset_dir.resolve()
     host_out = cfg.out.resolve()
     host_out.parent.mkdir(parents=True, exist_ok=True)
+    host_out.touch(exist_ok=True)
+    container_out = Path("/app/output") / cfg.out.name
 
     mounts = [
         (host_model, Path("/app/model"), "ro"),
         (host_dataset, Path("/app/data"), "ro"),
-        (host_out.parent, Path("/app/output"), "rw"),
+        (host_out, container_out, "rw"),
         (mapped_config_path, Path("/app/config.yaml"), "ro"),
     ]
     if mapped_few_shot_path is not None:
