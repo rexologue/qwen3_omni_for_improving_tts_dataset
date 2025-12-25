@@ -211,6 +211,7 @@ def run_with_config(config: ProcessDatasetConfig) -> None:
             if config.task == "tag":
                 _process_tag_batch(batch, config, processor, llm, sampling, accentizer, writer, fieldnames)
                 pbar.update(len(batch))
+                f.flush()
                 continue
 
             batch_cer = _process_restore_batch(
@@ -225,6 +226,7 @@ def run_with_config(config: ProcessDatasetConfig) -> None:
             )
             pbar.update(len(batch))
             pbar.set_postfix_str(f"cer: {batch_cer:.4f}")
+            f.flush()
 
     print("Готово:", output_csv)
     print(f"Всего обработано: {dataset_loader.total_pairs}")

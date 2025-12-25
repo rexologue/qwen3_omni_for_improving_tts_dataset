@@ -111,15 +111,16 @@ def _build_docker_command(
     docker_cfg: DockerRunConfig,
     mapped_config_path: Path,
     cfg: ProcessDatasetConfig,
+    output_csv: Path,
     extra_mounts: list[tuple[Path, Path, str]],
     mapped_few_shot_path: Path | None,
 ) -> list[str]:
     host_model = Path(cfg.model).resolve()
     host_dataset = cfg.dataset_dir.resolve()
-    host_out = cfg.out.resolve()
+    host_out = output_csv.resolve()
     host_out.parent.mkdir(parents=True, exist_ok=True)
     host_out.touch(exist_ok=True)
-    container_out = Path("/app/output") / cfg.out.name
+    container_out = Path("/app/output/result.csv")
 
     mounts = [
         (host_model, Path("/app/model"), "ro"),
@@ -158,6 +159,12 @@ def _build_docker_command(
 def main() -> None:
     args = parse_args()
     docker_cfg, dataset_data = _load_launcher_config(args.config)
+    output_csv_value = dataset_data.get("output_csv") or dataset_data.get("out")
+    if not output_csv_value:
+        raise ConfigError("В секции dataset не указан output_csv или out")
+    output_csv = Path(output_csv_value).expanduser()
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    output_csv.touch(exist_ok=True)
     cfg = ProcessDatasetConfig.from_dict(dataset_data)
 
     mapped_examples: list[dict[str, str]] = []
@@ -170,7 +177,10 @@ def main() -> None:
     mapped_data = dict(dataset_data)
     mapped_data["model"] = "/app/model"
     mapped_data["dataset_dir"] = "/app/data"
-    mapped_data["out"] = str(Path("/app/output") / cfg.out.name)
+    container_out = Path("/app/output/result.csv")
+    mapped_data["out"] = str(container_out)
+    if "output_csv" in mapped_data:
+        mapped_data["output_csv"] = str(container_out)
 
     if cfg.task == "tag":
         mapped_data["few_shot_json"] = "/app/few_shot/examples.json"
@@ -191,6 +201,7 @@ def main() -> None:
             docker_cfg,
             mapped_config_path,
             cfg,
+            output_csv,
             extra_mounts,
             mapped_few_shot_path,
         )
