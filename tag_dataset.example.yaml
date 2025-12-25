@@ -1,28 +1,39 @@
-# Пример конфига для process_dataset.py (task=tag)
-task: tag
-model: /path/to/your/model
+# Пример конфига для launcher.py (task=tag)
+docker:
+  image: my-qwen-omni-tool
+  build: true
+  context: .
+  dockerfile: Dockerfile
+  gpu: "0"
+  shm_size: 16g
+  container_name: null
+  use_host_user: false
+  dry_run: false
 
-# JSON с few-shot примерами
-few_shot_json: examples.json
+dataset:
+  task: tag
+  model: /path/to/your/model
 
-# Папка с аудио и CSV (файл metadata.csv с колонками audio_path, text, text_accent, speaker_name, language)
-dataset_dir: /data/dataset_root
+  # JSON с few-shot примерами
+  few_shot_json: /data/examples.json
 
-# Куда писать результаты
-out: /data/output/result.csv
+  # Папка с аудио и CSV (файл metadata.csv с колонками audio_path, text, text_accent, speaker_name, language)
+  dataset_dir: /data/dataset_root
 
+  # Куда писать результаты
+  out: /data/output/result.csv
 
-# Опциональные параметры
-batch_size: 8
-max_seqs: 8
-max_model_len: 4096
-gpu_mem: 0.75
-dtype: bfloat16
-kv_cache_dtype: fp8
-seed: 1234
-temperature: 0.05
-top_p: 0.9
-top_k: 40
-max_tokens: 2048
-tp: 1
-accent: true
+  # Опциональные параметры
+  batch_size: 8
+  max_seqs: 8
+  max_model_len: 4096
+  gpu_mem: 0.75
+  dtype: bfloat16
+  kv_cache_dtype: fp8
+  seed: 1234
+  temperature: 0.05
+  top_p: 0.9
+  top_k: 40
+  max_tokens: 2048
+  tp: 1
+  accent: true

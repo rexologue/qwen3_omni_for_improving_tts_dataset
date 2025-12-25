@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -11,15 +12,22 @@ import yaml
 from config import ConfigError, ProcessDatasetConfig
 
 
+@dataclass
+class DockerRunConfig:
+    image: str
+    build: bool
+    context: Path
+    dockerfile: Path
+    gpu: str
+    shm_size: str
+    container_name: str | None
+    use_host_user: bool
+    dry_run: bool
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Docker launcher with host-to-container path mapping")
-    parser.add_argument("--config", type=Path, required=True, help="YAML конфиг для process_dataset.py")
-    parser.add_argument("--image", default="my-qwen-omni-tool", help="Docker image name")
-    parser.add_argument("--container-name", default=None, help="Docker container name")
-    parser.add_argument("--gpu", default="all", help="GPU device id or 'all'")
-    parser.add_argument("--shm-size", default="16g", help="Shared memory size for Docker")
-    parser.add_argument("--use-host-user", action="store_true", help="Запускать контейнер от UID/GID хоста")
-    parser.add_argument("--dry-run", action="store_true", help="Показать docker команду без запуска")
+    parser.add_argument("--config", type=Path, required=True, help="YAML конфиг для docker запуска")
     return parser.parse_args()
 
 
@@ -29,6 +37,51 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ConfigError("Корневой элемент YAML должен быть словарём")
     return data
+
+
+def _load_launcher_config(path: Path) -> tuple[DockerRunConfig, dict[str, Any]]:
+    data = _load_yaml(path)
+    if "dataset" not in data:
+        raise ConfigError("В конфиге отсутствует секция dataset")
+    if "docker" not in data:
+        raise ConfigError("В конфиге отсутствует секция docker")
+
+    dataset_section = data["dataset"]
+    docker_section = data["docker"]
+
+    if not isinstance(dataset_section, dict):
+        raise ConfigError("Секция dataset должна быть словарём")
+    if not isinstance(docker_section, dict):
+        raise ConfigError("Секция docker должна быть словарём")
+
+    allowed_docker_fields = {
+        "image",
+        "build",
+        "context",
+        "dockerfile",
+        "gpu",
+        "shm_size",
+        "container_name",
+        "use_host_user",
+        "dry_run",
+    }
+    unknown = sorted(set(docker_section.keys()) - allowed_docker_fields)
+    if unknown:
+        raise ConfigError(f"Неизвестные поля в docker секции: {', '.join(unknown)}")
+
+    docker_cfg = DockerRunConfig(
+        image=str(docker_section.get("image", "my-qwen-omni-tool")),
+        build=bool(docker_section.get("build", True)),
+        context=Path(docker_section.get("context", ".")),
+        dockerfile=Path(docker_section.get("dockerfile", "Dockerfile")),
+        gpu=str(docker_section.get("gpu", "all")),
+        shm_size=str(docker_section.get("shm_size", "16g")),
+        container_name=docker_section.get("container_name"),
+        use_host_user=bool(docker_section.get("use_host_user", False)),
+        dry_run=bool(docker_section.get("dry_run", False)),
+    )
+
+    return docker_cfg, dataset_section
 
 
 def _map_few_shot_examples(
@@ -55,7 +108,7 @@ def _map_few_shot_examples(
 
 
 def _build_docker_command(
-    args: argparse.Namespace,
+    docker_cfg: DockerRunConfig,
     mapped_config_path: Path,
     cfg: ProcessDatasetConfig,
     extra_mounts: list[tuple[Path, Path, str]],
@@ -78,17 +131,17 @@ def _build_docker_command(
     mounts.extend(extra_mounts)
 
     cmd = ["docker", "run", "--rm"]
-    if args.gpu == "all":
+    if docker_cfg.gpu == "all":
         cmd += ["--gpus", "all"]
     else:
-        cmd += ["--gpus", f"device={args.gpu}"]
+        cmd += ["--gpus", f"device={docker_cfg.gpu}"]
 
-    cmd += ["--shm-size", args.shm_size]
+    cmd += ["--shm-size", docker_cfg.shm_size]
 
-    if args.container_name:
-        cmd += ["--name", args.container_name]
+    if docker_cfg.container_name:
+        cmd += ["--name", docker_cfg.container_name]
 
-    if args.use_host_user:
+    if docker_cfg.use_host_user:
         cmd += ["--user", f"{os.getuid()}:{os.getgid()}"]
         cmd += ["-e", "USER=omni", "-e", "HOME=/home/omni"]
 
@@ -102,8 +155,8 @@ def _build_docker_command(
 
 def main() -> None:
     args = parse_args()
-    data = _load_yaml(args.config)
-    cfg = ProcessDatasetConfig.from_dict(data)
+    docker_cfg, dataset_data = _load_launcher_config(args.config)
+    cfg = ProcessDatasetConfig.from_dict(dataset_data)
 
     mapped_examples: list[dict[str, str]] = []
     extra_mounts: list[tuple[Path, Path, str]] = []
@@ -112,7 +165,7 @@ def main() -> None:
     if cfg.task == "tag":
         mapped_examples, extra_mounts = _map_few_shot_examples(cfg.examples)
 
-    mapped_data = dict(data)
+    mapped_data = dict(dataset_data)
     mapped_data["model"] = "/app/model"
     mapped_data["dataset_dir"] = "/app/data"
     mapped_data["out"] = str(Path("/app/output") / cfg.out.name)
@@ -133,14 +186,29 @@ def main() -> None:
             yaml.safe_dump(mapped_data, f, allow_unicode=True)
 
         cmd = _build_docker_command(
-            args,
+            docker_cfg,
             mapped_config_path,
             cfg,
             extra_mounts,
             mapped_few_shot_path,
         )
 
-        if args.dry_run:
+        if docker_cfg.build:
+            build_cmd = [
+                "docker",
+                "build",
+                "-t",
+                docker_cfg.image,
+                "-f",
+                str(docker_cfg.dockerfile),
+                str(docker_cfg.context),
+            ]
+            if docker_cfg.dry_run:
+                print(" ".join(build_cmd))
+            else:
+                subprocess.run(build_cmd, check=True)
+
+        if docker_cfg.dry_run:
             print(" ".join(cmd))
             return
 
