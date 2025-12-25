@@ -194,6 +194,8 @@ def main() -> None:
             extra_mounts,
             mapped_few_shot_path,
         )
+        
+        print(cmd)
 
         if docker_cfg.build:
             build_cmd = [

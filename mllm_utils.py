@@ -196,5 +196,5 @@ def build_few_shot_inputs(
     return inputs
 
 def generate_texts(llm: LLM, inputs_list: list[dict[str, Any]], sampling: SamplingParams) -> list[str]:
-    outs = llm.generate(inputs_list, sampling_params=sampling, use_tqdm=True)
+    outs = llm.generate(inputs_list, sampling_params=sampling, use_tqdm=False)
     return [extract_out_payload(o.outputs[0].text) for o in outs]
